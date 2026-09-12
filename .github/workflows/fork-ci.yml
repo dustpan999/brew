@@ -1,0 +1,94 @@
+name: Fork CI
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  HOMEBREW_DEVELOPER: 1
+  HOMEBREW_NO_AUTO_UPDATE: 1
+  HOMEBREW_NO_ENV_HINTS: 1
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+  HOMEBREW_VERIFY_ATTESTATIONS: 1
+  BUNDLE_GEMFILE: Library/Homebrew/Gemfile
+
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+
+jobs:
+  ruby-dependencies:
+    name: Ruby dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+        with:
+          core: false
+          cask: false
+          test-bot: false
+
+      - name: Install Bundler RubyGems
+        run: brew install-bundler-gems --groups=all
+
+      - name: Verify locked dependencies
+        run: bundle check
+
+      - name: Check Homebrew configuration
+        run: brew config
+
+  ruby-tests:
+    name: Ruby tests
+    runs-on: ubuntu-latest
+    needs: ruby-dependencies
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+        with:
+          core: false
+          cask: false
+          test-bot: false
+
+      - name: Install Bundler RubyGems
+        run: brew install-bundler-gems --groups=all
+
+      - name: Run generic test suite
+        run: brew tests --generic --coverage
+
+  shell-and-ruby-sanity:
+    name: Shell and Ruby sanity checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+        with:
+          core: false
+          cask: false
+          test-bot: false
+
+      - name: Install Bundler RubyGems
+        run: brew install-bundler-gems --groups=style,typecheck
+
+      - name: Run Ruby typecheck
+        run: brew typecheck
+
+      - name: Run changed-file style checks
+        run: brew style --changed
